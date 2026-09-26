@@ -1,7 +1,7 @@
 # dmark - Directory Marks
 # Version 0.1.0
 
-$script:DMarkVersion = "0.3.2"
+$script:DMarkVersion = "0.4.0"
 $script:DMarkUpdateUrl = "https://raw.githubusercontent.com/FrEaKAlL/dmark/main/src/dmark.ps1"
 $script:DMarkHome = Join-Path $HOME ".dmark"
 $script:DMarkFile = Join-Path $script:DMarkHome "marks.json"
@@ -527,7 +527,7 @@ function dmark {
 Set-Alias dm dmark
 
 # ============================================================
-# Autocompletado
+# dmark - Autocompletado
 # ============================================================
 
 $script:DMarkCommands = @(
@@ -542,24 +542,19 @@ $script:DMarkCommands = @(
     "--version"
 )
 
-function Register-DMarkCompleter {
+function Get-DMarkCompletion {
 
-    $Completer = {
+    param(
+        [string]$WordToComplete,
+        $CommandAst
+    )
 
-        param(
-            $CommandName,
-            $ParameterName,
-            $WordToComplete,
-            $CommandAst,
-            $FakeBoundParameters
-        )
+    try {
 
-        # ----------------------------------------------------
-        # Obtener argumentos escritos
-        # ----------------------------------------------------
-
+        # Obtener los elementos escritos en el comando
         $Elements = @($CommandAst.CommandElements)
 
+        # Quitamos "dm" / "dmark"
         $Arguments = @()
 
         if ($Elements.Count -gt 1) {
@@ -573,11 +568,12 @@ function Register-DMarkCompleter {
         }
 
         # ----------------------------------------------------
-        # Primer argumento:
+        # Primer argumento
         #
         # dm <TAB>
+        # dm ya<TAB>
         #
-        # Mostrar comandos + marcadores
+        # Comandos + marcadores
         # ----------------------------------------------------
 
         if ($Arguments.Count -le 1) {
@@ -586,15 +582,10 @@ function Register-DMarkCompleter {
 
             $Results += $script:DMarkCommands
 
-            try {
-                $Marks = Get-DMarkData
+            $Marks = Get-DMarkData
 
-                if ($Marks.Count -gt 0) {
-                    $Results += $Marks.Keys
-                }
-            }
-            catch {
-                # No interrumpir TAB si falla la lectura
+            if ($Marks.Count -gt 0) {
+                $Results += $Marks.Keys
             }
 
             $Results |
@@ -617,47 +608,65 @@ function Register-DMarkCompleter {
 
         # ----------------------------------------------------
         # Segundo argumento
+        #
+        # Los siguientes comandos trabajan con
+        # marcadores existentes.
         # ----------------------------------------------------
 
         $SubCommand = $Arguments[0].ToLower()
 
-        switch ($SubCommand) {
+        if ($SubCommand -in @(
+            "rm",
+            "remove",
+            "rename",
+            "path",
+            "open"
+        )) {
 
-            # Comandos que reciben un marcador existente
-            { $_ -in @(
-                "rm",
-                "remove",
-                "rename",
-                "path",
-                "open"
-            ) } {
+            $Marks = Get-DMarkData
 
-                try {
+            $Marks.Keys |
+                Sort-Object |
+                Where-Object {
+                    $_ -like "$WordToComplete*"
+                } |
+                ForEach-Object {
 
-                    $Marks = Get-DMarkData
-
-                    $Marks.Keys |
-                        Sort-Object |
-                        Where-Object {
-                            $_ -like "$WordToComplete*"
-                        } |
-                        ForEach-Object {
-
-                            [System.Management.Automation.CompletionResult]::new(
-                                $_,
-                                $_,
-                                "ParameterValue",
-                                $Marks[$_]
-                            )
-                        }
-                }
-                catch {
-                    # No interrumpir TAB
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_,
+                        $_,
+                        "ParameterValue",
+                        $Marks[$_]
+                    )
                 }
 
-                return
-            }
+            return
         }
+
+    }
+    catch {
+        # El autocompletado nunca debe impedir
+        # el funcionamiento normal de PowerShell.
+        return
+    }
+}
+
+
+function Register-DMarkCompletion {
+
+    $Completer = {
+
+        param(
+            $CommandName,
+            $ParameterName,
+            $WordToComplete,
+            $CommandAst,
+            $FakeBoundParameters
+        )
+
+        Get-DMarkCompletion `
+            -WordToComplete $WordToComplete `
+            -CommandAst $CommandAst
     }
 
     Register-ArgumentCompleter `
@@ -671,4 +680,5 @@ function Register-DMarkCompleter {
         -ScriptBlock $Completer
 }
 
-Register-DMarkCompleter
+
+Register-DMarkCompletion
