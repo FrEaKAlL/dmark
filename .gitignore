@@ -1,0 +1,33 @@
+# ============================================
+# dmark
+# ============================================
+
+# PowerShell temporary files
+*.tmp
+*.temp
+*.log
+
+# PowerShell / IDE
+.vscode/
+.idea/
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+
+# Local test files
+test/
+tests-local/
+
+# Backups
+*.bak
+*.backup
+*~
+
+# Local dmark data
+.dmark/
+marks.json
