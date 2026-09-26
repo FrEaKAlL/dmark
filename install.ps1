@@ -1,12 +1,12 @@
 # ============================================================
 # dmark - Directory Marks
 # Installer
-# Version 0.2.0
+# Version 0.3.2
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 
-$DMarkVersion = "0.2.0"
+$DMarkVersion = "0.3.2"
 
 $DMarkHome = Join-Path $HOME ".dmark"
 $DMarkBin = Join-Path $DMarkHome "bin"
@@ -25,6 +25,91 @@ Write-Host "====================================="
 Write-Host ""
 
 # ------------------------------------------------------------
+# Funcion para configurar un Profile
+# ------------------------------------------------------------
+
+function Install-DMarkProfile {
+
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ProfileName
+    )
+
+    Write-Host ""
+    Write-Host "      $ProfileName"
+    Write-Host "      $ProfilePath"
+
+    $ProfileDirectory = Split-Path $ProfilePath -Parent
+
+    if (-not (Test-Path $ProfileDirectory)) {
+        New-Item `
+            -ItemType Directory `
+            -Path $ProfileDirectory `
+            -Force | Out-Null
+    }
+
+    if (-not (Test-Path $ProfilePath)) {
+        New-Item `
+            -ItemType File `
+            -Path $ProfilePath `
+            -Force | Out-Null
+    }
+
+    $ProfileContent = Get-Content $ProfilePath -Raw
+
+    if ($null -eq $ProfileContent) {
+        $ProfileContent = ""
+    }
+
+    $EscapedStart = [regex]::Escape($ProfileStart)
+    $EscapedEnd   = [regex]::Escape($ProfileEnd)
+
+    $ExistingBlockPattern =
+        "(?ms)$EscapedStart.*?$EscapedEnd\s*"
+
+    # Eliminar bloque anterior de dmark
+    $ProfileContent = [regex]::Replace(
+        $ProfileContent,
+        $ExistingBlockPattern,
+        ""
+    )
+
+    $DMarkProfileBlock = @"
+
+$ProfileStart
+# Carga dmark - Directory Marks
+
+`$DMarkScript = Join-Path `$HOME ".dmark\bin\dmark.ps1"
+
+if (Test-Path `$DMarkScript) {
+    . `$DMarkScript
+}
+
+$ProfileEnd
+
+"@
+
+    $NewProfileContent = $ProfileContent.TrimEnd()
+
+    if (-not [string]::IsNullOrWhiteSpace($NewProfileContent)) {
+        $NewProfileContent += "`r`n"
+    }
+
+    $NewProfileContent += $DMarkProfileBlock
+
+    Set-Content `
+        -Path $ProfilePath `
+        -Value $NewProfileContent `
+        -Encoding UTF8
+
+    Write-Host "      OK" -ForegroundColor Green
+}
+
+
+# ------------------------------------------------------------
 # 1. Validar archivo fuente
 # ------------------------------------------------------------
 
@@ -35,7 +120,6 @@ if (-not (Test-Path $SourceScript)) {
     Write-Host "ERROR: No se encontro:" -ForegroundColor Red
     Write-Host "  $SourceScript"
     Write-Host ""
-    Write-Host "Ejecuta install.ps1 desde el repositorio de dmark."
     exit 1
 }
 
@@ -81,87 +165,69 @@ Write-Host "      $DMarkInstalledScript"
 Write-Host "      OK" -ForegroundColor Green
 
 
+
 # ------------------------------------------------------------
-# 4. Configurar PowerShell Profile
+# 4. Configurar Profiles
 # ------------------------------------------------------------
 
-Write-Host "[4/5] Configurando PowerShell..."
+Write-Host "[4/5] Configurando PowerShell Profiles..."
 
-$ProfilePath = $PROFILE
+$Profiles = @()
 
-$ProfileDirectory = Split-Path $ProfilePath -Parent
+# Windows PowerShell 5.1
+$WindowsPowerShellProfile = Join-Path `
+    ([Environment]::GetFolderPath("MyDocuments")) `
+    "WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
 
-if (-not (Test-Path $ProfileDirectory)) {
-    New-Item `
-        -ItemType Directory `
-        -Path $ProfileDirectory `
-        -Force | Out-Null
+$Profiles += @{
+    Name = "Windows PowerShell 5.1"
+    Path = $WindowsPowerShellProfile
 }
 
-if (-not (Test-Path $ProfilePath)) {
-    New-Item `
-        -ItemType File `
-        -Path $ProfilePath `
-        -Force | Out-Null
+
+# PowerShell 7+
+$PowerShellProfile = Join-Path `
+    ([Environment]::GetFolderPath("MyDocuments")) `
+    "PowerShell\Microsoft.PowerShell_profile.ps1"
+
+$Profiles += @{
+    Name = "PowerShell 7+"
+    Path = $PowerShellProfile
 }
 
-$ProfileContent = Get-Content $ProfilePath -Raw
 
-if ($null -eq $ProfileContent) {
-    $ProfileContent = ""
+# Evitar procesar dos veces la misma ruta
+$ProcessedProfiles = @{}
+
+foreach ($ProfileInfo in $Profiles) {
+
+    $ProfilePath = $ProfileInfo.Path
+
+    if ($ProcessedProfiles.ContainsKey($ProfilePath)) {
+        continue
+    }
+
+    Install-DMarkProfile `
+        -ProfilePath $ProfilePath `
+        -ProfileName $ProfileInfo.Name
+
+    $ProcessedProfiles[$ProfilePath] = $true
 }
-
-$EscapedStart = [regex]::Escape($ProfileStart)
-$EscapedEnd   = [regex]::Escape($ProfileEnd)
-
-$ExistingBlockPattern =
-    "(?ms)$EscapedStart.*?$EscapedEnd\s*"
-
-# Eliminar configuracion anterior de dmark
-$ProfileContent =
-    [regex]::Replace(
-        $ProfileContent,
-        $ExistingBlockPattern,
-        ""
-    )
-
-$DMarkProfileBlock = @"
-
-$ProfileStart
-# Carga dmark - Directory Marks
-
-`$DMarkScript = Join-Path `$HOME ".dmark\bin\dmark.ps1"
-
-if (Test-Path `$DMarkScript) {
-    . `$DMarkScript
-}
-
-$ProfileEnd
-
-"@
-
-$ProfileContent =
-    $ProfileContent.TrimEnd() +
-    "`r`n" +
-    $DMarkProfileBlock
-
-Set-Content `
-    -Path $ProfilePath `
-    -Value $ProfileContent `
-    -Encoding UTF8
-
-Write-Host "      Profile:"
-Write-Host "      $ProfilePath"
-Write-Host "      OK" -ForegroundColor Green
 
 
 # ------------------------------------------------------------
-# 5. Cargar dmark en la sesion actual
+# 5. Cargar dmark en esta ejecucion
 # ------------------------------------------------------------
 
-Write-Host "[5/5] Cargando dmark..."
+Write-Host ""
+Write-Host "[5/5] Validando instalacion..."
 
-. $DMarkInstalledScript
+if (-not (Test-Path $DMarkInstalledScript)) {
+    Write-Host "      ERROR" -ForegroundColor Red
+    Write-Host "No se encontro:"
+    Write-Host "  $DMarkInstalledScript"
+    exit 1
+}
 
 Write-Host "      OK" -ForegroundColor Green
 
@@ -180,8 +246,23 @@ Write-Host "Instalacion:"
 Write-Host "  $DMarkInstalledScript"
 Write-Host ""
 
+Write-Host "Profiles configurados:"
+Write-Host ""
+
+foreach ($ProfileInfo in $Profiles) {
+    Write-Host "  $($ProfileInfo.Name)"
+    Write-Host "    $($ProfileInfo.Path)"
+}
+
+Write-Host ""
 Write-Host "Configuracion:"
 Write-Host "  $DMarkHome\marks.json"
+Write-Host ""
+
+Write-Host "dmark estara disponible en nuevas sesiones de:"
+Write-Host ""
+Write-Host "  - Windows PowerShell 5.1"
+Write-Host "  - PowerShell 7+"
 Write-Host ""
 
 Write-Host "Comandos:"
@@ -193,8 +274,9 @@ Write-Host "  dm rm <nombre>"
 Write-Host "  dm rename <actual> <nuevo>"
 Write-Host "  dm path <nombre>"
 Write-Host "  dm open <nombre>"
+Write-Host "  dm update"
 Write-Host "  dm --help"
 Write-Host ""
 
-Write-Host "Puedes comenzar a utilizar dmark ahora."
+Write-Host "Abre una nueva terminal para comenzar."
 Write-Host ""

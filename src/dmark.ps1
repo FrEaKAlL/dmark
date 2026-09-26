@@ -1,7 +1,7 @@
 # dmark - Directory Marks
 # Version 0.1.0
 
-$script:DMarkVersion = "0.3.1"
+$script:DMarkVersion = "0.3.2"
 $script:DMarkUpdateUrl = "https://raw.githubusercontent.com/FrEaKAlL/dmark/main/src/dmark.ps1"
 $script:DMarkHome = Join-Path $HOME ".dmark"
 $script:DMarkFile = Join-Path $script:DMarkHome "marks.json"
@@ -525,3 +525,150 @@ function dmark {
 }
 
 Set-Alias dm dmark
+
+# ============================================================
+# Autocompletado
+# ============================================================
+
+$script:DMarkCommands = @(
+    "add",
+    "rm",
+    "remove",
+    "rename",
+    "path",
+    "open",
+    "update",
+    "--help",
+    "--version"
+)
+
+function Register-DMarkCompleter {
+
+    $Completer = {
+
+        param(
+            $CommandName,
+            $ParameterName,
+            $WordToComplete,
+            $CommandAst,
+            $FakeBoundParameters
+        )
+
+        # ----------------------------------------------------
+        # Obtener argumentos escritos
+        # ----------------------------------------------------
+
+        $Elements = @($CommandAst.CommandElements)
+
+        $Arguments = @()
+
+        if ($Elements.Count -gt 1) {
+            $Arguments = @(
+                $Elements |
+                    Select-Object -Skip 1 |
+                    ForEach-Object {
+                        $_.Extent.Text.Trim("'`"")
+                    }
+            )
+        }
+
+        # ----------------------------------------------------
+        # Primer argumento:
+        #
+        # dm <TAB>
+        #
+        # Mostrar comandos + marcadores
+        # ----------------------------------------------------
+
+        if ($Arguments.Count -le 1) {
+
+            $Results = @()
+
+            $Results += $script:DMarkCommands
+
+            try {
+                $Marks = Get-DMarkData
+
+                if ($Marks.Count -gt 0) {
+                    $Results += $Marks.Keys
+                }
+            }
+            catch {
+                # No interrumpir TAB si falla la lectura
+            }
+
+            $Results |
+                Sort-Object -Unique |
+                Where-Object {
+                    $_ -like "$WordToComplete*"
+                } |
+                ForEach-Object {
+
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_,
+                        $_,
+                        "ParameterValue",
+                        $_
+                    )
+                }
+
+            return
+        }
+
+        # ----------------------------------------------------
+        # Segundo argumento
+        # ----------------------------------------------------
+
+        $SubCommand = $Arguments[0].ToLower()
+
+        switch ($SubCommand) {
+
+            # Comandos que reciben un marcador existente
+            { $_ -in @(
+                "rm",
+                "remove",
+                "rename",
+                "path",
+                "open"
+            ) } {
+
+                try {
+
+                    $Marks = Get-DMarkData
+
+                    $Marks.Keys |
+                        Sort-Object |
+                        Where-Object {
+                            $_ -like "$WordToComplete*"
+                        } |
+                        ForEach-Object {
+
+                            [System.Management.Automation.CompletionResult]::new(
+                                $_,
+                                $_,
+                                "ParameterValue",
+                                $Marks[$_]
+                            )
+                        }
+                }
+                catch {
+                    # No interrumpir TAB
+                }
+
+                return
+            }
+        }
+    }
+
+    Register-ArgumentCompleter `
+        -CommandName dmark `
+        -ParameterName Command `
+        -ScriptBlock $Completer
+
+    Register-ArgumentCompleter `
+        -CommandName dm `
+        -ParameterName Command `
+        -ScriptBlock $Completer
+}
+
+Register-DMarkCompleter
