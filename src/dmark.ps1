@@ -1,7 +1,7 @@
 # dmark - Directory Marks
 # Version 0.1.0
 
-$script:DMarkVersion = "0.4.0"
+$script:DMarkVersion = "0.5.0"
 $script:DMarkUpdateUrl = "https://raw.githubusercontent.com/FrEaKAlL/dmark/main/src/dmark.ps1"
 $script:DMarkHome = Join-Path $HOME ".dmark"
 $script:DMarkFile = Join-Path $script:DMarkHome "marks.json"
@@ -201,6 +201,9 @@ Uso:
 
   dm add <nombre> <ruta>
       Registra una ruta específica.
+
+  dm doctor
+      Diagnostica la instalacion y configuracion.
 
   dm update
       Busca e instala una nueva version de dmark.
@@ -411,6 +414,320 @@ function Update-DMark {
     }
 }
 
+function Test-DMarkProfile {
+
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath
+    )
+
+    if (-not (Test-Path $ProfilePath)) {
+        return $false
+    }
+
+    try {
+
+        $Content = Get-Content `
+            -Path $ProfilePath `
+            -Raw `
+            -ErrorAction Stop
+
+        if ([string]::IsNullOrWhiteSpace($Content)) {
+            return $false
+        }
+
+        return (
+            $Content -match '# >>> dmark >>>' -and
+            $Content -match '\.dmark[\\/]bin[\\/]dmark\.ps1' -and
+            $Content -match '# <<< dmark <<<'
+        )
+
+    }
+    catch {
+        return $false
+    }
+}
+
+function Show-DMarkDoctor {
+
+    Initialize-DMark
+
+    $OkCount = 0
+    $WarnCount = 0
+    $ErrorCount = 0
+
+    function Write-DoctorResult {
+
+        param(
+            [Parameter(Mandatory = $true)]
+            [ValidateSet("OK", "WARN", "ERROR")]
+            [string]$Status,
+
+            [Parameter(Mandatory = $true)]
+            [string]$Name,
+
+            [string]$Value = ""
+        )
+
+        switch ($Status) {
+
+            "OK" {
+                Write-Host "[OK]   " -ForegroundColor Green -NoNewline
+                $script:DoctorOkCount++
+            }
+
+            "WARN" {
+                Write-Host "[WARN] " -ForegroundColor Yellow -NoNewline
+                $script:DoctorWarnCount++
+            }
+
+            "ERROR" {
+                Write-Host "[ERROR]" -ForegroundColor Red -NoNewline
+                Write-Host " " -NoNewline
+                $script:DoctorErrorCount++
+            }
+        }
+
+        Write-Host $Name -NoNewline
+
+        if (-not [string]::IsNullOrWhiteSpace($Value)) {
+            Write-Host "  $Value"
+        }
+        else {
+            Write-Host ""
+        }
+    }
+
+
+    $script:DoctorOkCount = 0
+    $script:DoctorWarnCount = 0
+    $script:DoctorErrorCount = 0
+
+
+    Write-Host ""
+    Write-Host "dmark doctor"
+    Write-Host "------------"
+    Write-Host ""
+
+
+    # --------------------------------------------------------
+    # Version
+    # --------------------------------------------------------
+
+    Write-DoctorResult `
+        -Status "OK" `
+        -Name "Version" `
+        -Value $script:DMarkVersion
+
+
+    # --------------------------------------------------------
+    # PowerShell
+    # --------------------------------------------------------
+
+    $PowerShellVersion = $PSVersionTable.PSVersion.ToString()
+
+    Write-DoctorResult `
+        -Status "OK" `
+        -Name "PowerShell" `
+        -Value $PowerShellVersion
+
+
+    # --------------------------------------------------------
+    # Archivo instalado
+    # --------------------------------------------------------
+
+    $InstalledScript = Join-Path `
+        $HOME `
+        ".dmark\bin\dmark.ps1"
+
+    if (Test-Path $InstalledScript) {
+
+        Write-DoctorResult `
+            -Status "OK" `
+            -Name "Installation" `
+            -Value $InstalledScript
+
+    }
+    else {
+
+        Write-DoctorResult `
+            -Status "ERROR" `
+            -Name "Installation" `
+            -Value "dmark.ps1 not found"
+    }
+
+
+    # --------------------------------------------------------
+    # marks.json
+    # --------------------------------------------------------
+
+    if (Test-Path $script:DMarkFile) {
+
+        try {
+
+            $RawMarks = Get-Content `
+                -Path $script:DMarkFile `
+                -Raw `
+                -ErrorAction Stop
+
+            if ([string]::IsNullOrWhiteSpace($RawMarks)) {
+                throw "Empty file"
+            }
+
+            $null = $RawMarks | ConvertFrom-Json
+
+            Write-DoctorResult `
+                -Status "OK" `
+                -Name "marks.json" `
+                -Value "Valid"
+
+        }
+        catch {
+
+            Write-DoctorResult `
+                -Status "ERROR" `
+                -Name "marks.json" `
+                -Value "Invalid JSON"
+        }
+
+    }
+    else {
+
+        Write-DoctorResult `
+            -Status "WARN" `
+            -Name "marks.json" `
+            -Value "Not created yet"
+    }
+
+
+    # --------------------------------------------------------
+    # Cantidad de marcadores
+    # --------------------------------------------------------
+
+    try {
+
+        $Marks = Get-DMarkData
+
+        Write-DoctorResult `
+            -Status "OK" `
+            -Name "Marks" `
+            -Value $Marks.Count
+
+    }
+    catch {
+
+        Write-DoctorResult `
+            -Status "ERROR" `
+            -Name "Marks" `
+            -Value "Unable to read"
+    }
+
+
+    # --------------------------------------------------------
+    # Profiles
+    # --------------------------------------------------------
+
+    try {
+
+        $Documents = [Environment]::GetFolderPath("MyDocuments")
+
+        $PS5Profile = Join-Path `
+            $Documents `
+            "WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+
+        $PS7Profile = Join-Path `
+            $Documents `
+            "PowerShell\Microsoft.PowerShell_profile.ps1"
+
+
+        if (Test-DMarkProfile $PS5Profile) {
+
+            Write-DoctorResult `
+                -Status "OK" `
+                -Name "PS 5.1 profile" `
+                -Value "Configured"
+
+        }
+        else {
+
+            Write-DoctorResult `
+                -Status "WARN" `
+                -Name "PS 5.1 profile" `
+                -Value "Not configured"
+        }
+
+
+        if (Test-DMarkProfile $PS7Profile) {
+
+            Write-DoctorResult `
+                -Status "OK" `
+                -Name "PS 7+ profile" `
+                -Value "Configured"
+
+        }
+        else {
+
+            Write-DoctorResult `
+                -Status "WARN" `
+                -Name "PS 7+ profile" `
+                -Value "Not configured"
+        }
+
+    }
+    catch {
+
+        Write-DoctorResult `
+            -Status "WARN" `
+            -Name "PowerShell profiles" `
+            -Value "Unable to validate"
+    }
+
+
+    # --------------------------------------------------------
+    # Resumen
+    # --------------------------------------------------------
+
+    Write-Host ""
+    Write-Host "Summary"
+    Write-Host "-------"
+
+    Write-Host "OK     : $script:DoctorOkCount" `
+        -ForegroundColor Green
+
+    Write-Host "Warnings: $script:DoctorWarnCount" `
+        -ForegroundColor Yellow
+
+    Write-Host "Errors  : $script:DoctorErrorCount" `
+        -ForegroundColor Red
+
+    Write-Host ""
+
+    if (
+        $script:DoctorWarnCount -eq 0 -and
+        $script:DoctorErrorCount -eq 0
+    ) {
+
+        Write-Host "No problems found." `
+            -ForegroundColor Green
+
+    }
+    elseif ($script:DoctorErrorCount -gt 0) {
+
+        Write-Host `
+            "dmark found one or more problems that require attention." `
+            -ForegroundColor Red
+
+    }
+    else {
+
+        Write-Host `
+            "dmark is working, but some configuration warnings were found." `
+            -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+}
+
 function dmark {
 
     param(
@@ -432,6 +749,11 @@ function dmark {
     }
 
     switch ($Command.ToLower()) {
+
+        "doctor" {
+            Show-DMarkDoctor
+            return
+        }
 
         "add" {
             Add-DMark $Argument1 $Argument2
@@ -538,6 +860,7 @@ $script:DMarkCommands = @(
     "path",
     "open",
     "update",
+    "doctor",
     "--help",
     "--version"
 )
