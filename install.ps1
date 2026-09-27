@@ -286,10 +286,23 @@ foreach ($ProfileInfo in $Profiles) {
 # ============================================================
 
 Write-Host ""
-Write-Host "[5/5] Finalizando..."
+Write-Host "[5/5] Cargando dmark..."
 
-Write-Host "      OK" -ForegroundColor Green
+try {
 
+    . $DMarkInstalledScript
+
+    Write-Host "      Version $InstalledVersion"
+    Write-Host "      OK" -ForegroundColor Green
+
+}
+catch {
+
+    Write-Host "      No se pudo cargar dmark en la sesion actual." `
+        -ForegroundColor Yellow
+
+    Write-Host "      Abre una nueva terminal para utilizar dm."
+}
 
 Write-Host ""
 Write-Host "====================================="
