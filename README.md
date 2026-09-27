@@ -2,136 +2,158 @@
 
 **Directory Marks for PowerShell**
 
-`dmark` es una herramienta ligera para PowerShell que permite guardar directorios frecuentes con un nombre corto y navegar hacia ellos rápidamente desde cualquier ubicación de la terminal.
+`dmark` es una herramienta ligera para guardar directorios con nombres cortos y navegar rápidamente entre ellos desde PowerShell.
 
-En lugar de escribir:
-
-```powershell
-cd C:\ProyectosPersonales\Aplicaciones\MiProyecto
-```
-
-puedes registrar la ruta una sola vez:
+En lugar de escribir rutas completas:
 
 ```powershell
-dm add miproyecto C:\ProyectosPersonales\Aplicaciones\MiProyecto
+cd C:\Users\usuario\Documents\Proyectos\MiAplicacion
 ```
 
-y posteriormente navegar hacia ella simplemente con:
+puedes guardar la ubicación una sola vez:
 
 ```powershell
-dm miproyecto
+dm add proyecto
 ```
+
+y posteriormente regresar desde cualquier directorio con:
+
+```powershell
+dm proyecto
+```
+
+---
 
 ## Características
 
-* Navegación rápida entre directorios.
-* Marcadores persistentes.
-* Alias corto `dm`.
-* Registro del directorio actual.
-* Registro manual de cualquier ruta.
-* Listado de marcadores.
-* Eliminación y renombrado de marcadores.
-* Apertura de directorios en Windows Explorer.
-* Instalación automática en el perfil de PowerShell.
-* Sin dependencias externas.
-* No requiere Node.js, Python ni aplicaciones adicionales.
-* Los marcadores se mantienen separados de los archivos de la aplicación.
+- Marcadores persistentes de directorios.
+- Navegación con comandos cortos.
+- Alias `dm`.
+- Autocompletado con `TAB`.
+- Apertura de directorios en el Explorador de Windows.
+- Consulta de rutas sin cambiar de directorio.
+- Renombrado y eliminación de marcadores.
+- Actualización mediante `dm update`.
+- Instalación remota desde GitHub.
+- Compatible con Windows PowerShell 5.1.
+- Compatible con PowerShell 7+.
+- Los mismos marcadores se comparten entre ambas versiones de PowerShell.
+- No requiere modificar `PATH`.
+- Los marcadores se conservan al actualizar o reinstalar.
 
-## Requisitos
+---
 
-Actualmente `dmark` está diseñado para:
+# Instalación
 
-* Windows
-* PowerShell
-* Windows PowerShell o terminales que utilicen PowerShell como shell
+## Instalación rápida
 
-También puede utilizarse desde terminales como Warp siempre que la sesión activa sea PowerShell.
-
-## Instalación
-
-Clona el repositorio:
+Ejecuta en PowerShell:
 
 ```powershell
-git clone https://github.com/FrEaKAlL/dmark.git
+irm https://raw.githubusercontent.com/FrEaKAlL/dmark/main/install.ps1 | iex
 ```
 
-Entra al directorio:
+El instalador:
 
-```powershell
-cd dmark
-```
+1. Crea el directorio `~\.dmark`.
+2. Descarga `dmark.ps1`.
+3. Instala la herramienta en `~\.dmark\bin`.
+4. Configura Windows PowerShell 5.1.
+5. Configura PowerShell 7+.
+6. Conserva los marcadores existentes en caso de reinstalación.
 
-Ejecuta el instalador:
-
-```powershell
-.\install.ps1
-```
-
-El instalador copiará `dmark` a:
-
-```text
-~\.dmark\bin\dmark.ps1
-```
-
-y agregará automáticamente la carga de `dmark` al perfil de PowerShell.
-
-Después de la instalación puedes utilizar inmediatamente:
-
-```powershell
-dm
-```
-
-También puedes cerrar la terminal, abrir una nueva sesión de PowerShell y ejecutar:
+Después de la instalación puedes ejecutar:
 
 ```powershell
 dm --version
 ```
 
-## Uso rápido
+---
 
-### Registrar el directorio actual
+## Instalación desde el repositorio
 
-Ubícate en la carpeta que quieres guardar:
-
-```powershell
-cd C:\ProyectosPersonales
-```
-
-y ejecuta:
+Para desarrollo o para trabajar directamente con el código fuente:
 
 ```powershell
-dm add personales
+git clone https://github.com/FrEaKAlL/dmark.git
+cd dmark
+.\install.ps1
 ```
 
-A partir de ese momento puedes regresar desde cualquier ubicación con:
+Cuando el instalador detecta `src\dmark.ps1` utiliza automáticamente el archivo local en lugar de descargarlo.
+
+---
+
+# Uso rápido
+
+Guardar el directorio actual:
 
 ```powershell
-dm personales
+dm add proyecto
 ```
 
-### Registrar una ruta directamente
-
-No es necesario estar dentro del directorio:
+Ir al directorio:
 
 ```powershell
-dm add logs D:\Logs
+dm proyecto
 ```
 
-Después:
+Guardar una ruta específica:
 
 ```powershell
-dm logs
+dm add descargas C:\Users\usuario\Downloads
 ```
 
-te llevará directamente a:
+Ahora puedes ejecutar:
 
-```text
-D:\Logs
+```powershell
+dm descargas
 ```
 
-## Comandos
+desde cualquier ubicación.
 
-### Listar marcadores
+---
+
+# Comandos
+
+| Comando | Descripción |
+|---|---|
+| `dm` | Lista todos los marcadores |
+| `dm <nombre>` | Navega al marcador |
+| `dm add <nombre>` | Guarda el directorio actual |
+| `dm add <nombre> <ruta>` | Guarda una ruta específica |
+| `dm rm <nombre>` | Elimina un marcador |
+| `dm remove <nombre>` | Elimina un marcador |
+| `dm rename <actual> <nuevo>` | Renombra un marcador |
+| `dm path <nombre>` | Muestra la ruta del marcador |
+| `dm open <nombre>` | Abre el directorio en el Explorador |
+| `dm update` | Busca e instala una nueva versión |
+| `dm --version` | Muestra la versión instalada |
+| `dm --help` | Muestra la ayuda |
+
+También puede utilizarse el nombre completo:
+
+```powershell
+dmark
+dmark proyecto
+dmark --help
+```
+
+---
+
+# Ejemplos
+
+## Guardar directorios
+
+```powershell
+cd C:\Proyectos\Api
+dm add api
+
+cd C:\Proyectos\Frontend
+dm add frontend
+```
+
+Lista los marcadores:
 
 ```powershell
 dm
@@ -140,280 +162,323 @@ dm
 Ejemplo:
 
 ```text
-dmark - Directorios registrados
-
-  logs                 D:\Logs
-  personales           C:\ProyectosPersonales
+api       C:\Proyectos\Api
+frontend  C:\Proyectos\Frontend
 ```
 
-### Agregar el directorio actual
+---
+
+## Navegar
+
+Desde cualquier ubicación:
 
 ```powershell
-dm add <nombre>
+dm api
 ```
 
-Ejemplo:
+dmark cambia el directorio de la sesión actual a:
 
-```powershell
-dm add logs
+```text
+C:\Proyectos\Api
 ```
 
-### Agregar una ruta específica
+---
+
+## Consultar una ruta
 
 ```powershell
-dm add <nombre> <ruta>
+dm path frontend
 ```
 
-Ejemplo:
+Resultado:
 
-```powershell
-dm add personal C:\ProyectosPersonales
+```text
+C:\Proyectos\Frontend
 ```
 
-### Navegar a un directorio
+Esto no cambia el directorio actual.
+
+---
+
+## Abrir en el Explorador
 
 ```powershell
-dm <nombre>
+dm open frontend
 ```
 
-Ejemplo:
+---
+
+## Renombrar
 
 ```powershell
-dm logs
+dm rename frontend web
 ```
 
-### Mostrar la ruta
+Ahora puedes utilizar:
 
 ```powershell
-dm path <nombre>
+dm web
 ```
 
-Ejemplo:
+---
+
+## Eliminar
 
 ```powershell
-dm path logs
-```
-
-### Abrir en Windows Explorer
-
-```powershell
-dm open <nombre>
-```
-
-Ejemplo:
-
-```powershell
-dm open logs
-```
-
-### Renombrar un marcador
-
-```powershell
-dm rename <actual> <nuevo>
-```
-
-Ejemplo:
-
-```powershell
-dm rename personal proyectos
-```
-
-### Eliminar un marcador
-
-Puedes utilizar:
-
-```powershell
-dm rm <nombre>
-```
-
-o:
-
-```powershell
-dm remove <nombre>
-```
-
-Ejemplo:
-
-```powershell
-dm rm logs
-```
-
-### Mostrar ayuda
-
-```powershell
-dm --help
+dm rm web
 ```
 
 También:
 
 ```powershell
-dm -h
+dm remove web
 ```
 
-### Mostrar versión
+---
+
+# Autocompletado
+
+dmark incluye autocompletado mediante `TAB`.
+
+Por ejemplo, si existe:
+
+```text
+proyectos
+```
+
+puedes escribir:
+
+```text
+dm pro<TAB>
+```
+
+y PowerShell completará:
+
+```text
+dm proyectos
+```
+
+También funciona con subcomandos:
+
+```text
+dm op<TAB>
+```
+
+resultado:
+
+```text
+dm open
+```
+
+y con marcadores utilizados por un subcomando:
+
+```text
+dm open pro<TAB>
+dm path pro<TAB>
+dm rm pro<TAB>
+```
+
+El autocompletado funciona tanto con:
+
+```text
+dm
+```
+
+como con:
+
+```text
+dmark
+```
+
+---
+
+# Actualización
+
+dmark puede actualizarse directamente desde GitHub.
+
+Ejecuta:
+
+```powershell
+dm update
+```
+
+La herramienta:
+
+1. Consulta la versión publicada.
+2. Compara la versión instalada.
+3. Descarga el nuevo `dmark.ps1`.
+4. Valida el archivo descargado.
+5. Crea temporalmente una copia de seguridad.
+6. Reemplaza la versión instalada.
+7. Recarga dmark en la sesión.
+
+Los marcadores no se eliminan durante una actualización.
+
+Puedes consultar la versión instalada con:
 
 ```powershell
 dm --version
 ```
 
-## `dmark` y `dm`
+---
 
-El nombre principal de la herramienta es:
+# Almacenamiento
 
-```powershell
-dmark
-```
-
-Para facilitar su uso diario se proporciona el alias:
-
-```powershell
-dm
-```
-
-Por lo tanto:
-
-```powershell
-dmark logs
-```
-
-
-y:
-
-```powershell
-dm logs
-```
-
-son equivalentes.
-
-## Almacenamiento de marcadores
-
-Los directorios registrados se almacenan en:
-
-```text
-~\.dmark\marks.json
-```
-
-Por ejemplo:
-
-```json
-{
-  "personales": "C:\\ProyectosPersonales",
-  "logs": "D:\\Logs"
-}
-```
-
-Este archivo es independiente de los archivos de instalación de `dmark`.
-
-La estructura local es:
+dmark utiliza:
 
 ```text
 ~\.dmark\
 ├── bin\
 │   └── dmark.ps1
-│
 └── marks.json
 ```
 
-Esto permite actualizar o reinstalar `dmark` sin eliminar los directorios registrados.
-
-## Estructura del proyecto
+El programa se almacena en:
 
 ```text
-dmark\
-├── src\
+~\.dmark\bin\dmark.ps1
+```
+
+Los marcadores se almacenan por separado en:
+
+```text
+~\.dmark\marks.json
+```
+
+Esta separación permite actualizar o reinstalar dmark sin perder los directorios guardados.
+
+---
+
+# PowerShell 5.1 y PowerShell 7
+
+En Windows, el instalador configura los perfiles de:
+
+```text
+Windows PowerShell 5.1
+PowerShell 7+
+```
+
+Ambos cargan la misma instalación:
+
+```text
+~\.dmark\bin\dmark.ps1
+```
+
+y utilizan el mismo archivo:
+
+```text
+~\.dmark\marks.json
+```
+
+Por ejemplo, puedes crear un marcador desde PowerShell 7:
+
+```powershell
+dm add proyectos C:\Proyectos
+```
+
+y utilizarlo posteriormente desde Windows PowerShell 5.1:
+
+```powershell
+dm proyectos
+```
+
+---
+
+# Desinstalación
+
+Desde el repositorio ejecuta:
+
+```powershell
+.\uninstall.ps1
+```
+
+Por defecto se elimina dmark y su configuración de los perfiles de PowerShell, pero se conservan los marcadores:
+
+```text
+~\.dmark\marks.json
+```
+
+Esto permite reinstalar posteriormente la herramienta sin perderlos.
+
+Para eliminar también los marcadores:
+
+```powershell
+.\uninstall.ps1 -Purge
+```
+
+> `-Purge` elimina permanentemente los marcadores guardados.
+
+---
+
+# Estructura del repositorio
+
+```text
+dmark/
+├── src/
 │   └── dmark.ps1
-│
 ├── install.ps1
+├── uninstall.ps1
 ├── README.md
+├── LICENSE
 └── .gitignore
 ```
 
-### `src/dmark.ps1`
+`src\dmark.ps1` contiene la funcionalidad principal.
 
-Contiene la funcionalidad principal:
+`install.ps1` permite instalación local o remota.
 
-* administración de marcadores;
-* navegación;
-* listado;
-* apertura de directorios;
-* ayuda;
-* alias `dm`.
+`uninstall.ps1` elimina la instalación y opcionalmente los datos.
 
-### `install.ps1`
+---
 
-Se encarga de:
+# Filosofía
 
-* crear `~\.dmark`;
-* crear `~\.dmark\bin`;
-* instalar `dmark.ps1`;
-* configurar `$PROFILE`;
-* cargar `dmark` en PowerShell.
+dmark busca resolver un problema pequeño con una herramienta pequeña.
 
-## Configuración de PowerShell
+La idea es mantener:
 
-Durante la instalación se agrega un bloque administrado por `dmark` al `$PROFILE`:
+- comandos fáciles de recordar;
+- instalación sencilla;
+- bajo consumo de recursos;
+- cero servicios ejecutándose en segundo plano;
+- datos almacenados localmente;
+- pocas dependencias;
+- compatibilidad entre versiones de PowerShell.
 
-```powershell
-# >>> dmark >>>
-# Carga dmark - Directory Marks
+dmark no intenta reemplazar un explorador de archivos ni un gestor de proyectos. Su función es simplemente permitir guardar una ruta y regresar a ella rápidamente.
 
-$DMarkScript = Join-Path $HOME ".dmark\bin\dmark.ps1"
+---
 
-if (Test-Path $DMarkScript) {
-    . $DMarkScript
-}
+# Roadmap
 
-# <<< dmark <<<
-```
+Implementado:
 
-El instalador identifica este bloque para evitar duplicarlo durante una reinstalación.
+- [x] Marcadores persistentes
+- [x] Navegación mediante `dm`
+- [x] Agregar y eliminar marcadores
+- [x] Renombrar marcadores
+- [x] Abrir directorios en Explorer
+- [x] Consultar rutas
+- [x] Instalador
+- [x] Desinstalador
+- [x] `dm update`
+- [x] Windows PowerShell 5.1
+- [x] PowerShell 7+
+- [x] Autocompletado con `TAB`
+- [x] Instalación remota
 
-## Filosofía del proyecto
+Planeado:
 
-`dmark` busca mantenerse:
+- [ ] `dm doctor`
+- [ ] Exportación e importación de marcadores
+- [ ] Backup de marcadores
+- [ ] Mejoras en diagnóstico de instalación
+- [ ] Evaluar soporte para otros shells y plataformas
 
-**Simple.** Un comando corto para llegar rápidamente a los directorios frecuentes.
+---
 
-**Ligero.** Implementado únicamente con PowerShell.
+# Licencia
 
-**Portable.** La configuración personal está separada del código de la herramienta.
+Este proyecto se distribuye bajo la licencia MIT.
 
-**No limitado a proyectos.** Un marcador puede apuntar a cualquier directorio:
-
-```powershell
-dm add trabajo D:\Trabajo
-dm add descargas C:\Users\Usuario\Downloads
-dm add logs D:\Logs
-dm add scripts C:\Scripts
-```
-
-## Roadmap
-
-Entre las funcionalidades consideradas para próximas versiones se encuentran:
-
-* actualización mediante `dm update`;
-* desinstalador;
-* autocompletado con `TAB`;
-* instalación remota;
-* mejoras en `dm doctor`;
-* administración y respaldo de marcadores;
-* soporte para nuevas plataformas/shells.
-
-## Versión actual
-
-```text
-dmark 0.2.0
-```
-
-## Repositorio
-
-GitHub:
-
-```text
-https://github.com/FrEaKAlL/dmark
-```
-
-## Licencia
-
-La licencia del proyecto se definirá antes de la primera versión estable.
-
+Consulta [LICENSE](LICENSE) para más información.
