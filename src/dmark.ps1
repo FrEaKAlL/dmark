@@ -1,7 +1,7 @@
 # dmark - Directory Marks
 # Version 0.1.0
 
-$script:DMarkVersion = "0.5.0"
+$script:DMarkVersion = "0.6.0"
 $script:DMarkUpdateUrl = "https://raw.githubusercontent.com/FrEaKAlL/dmark/main/src/dmark.ps1"
 $script:DMarkHome = Join-Path $HOME ".dmark"
 $script:DMarkFile = Join-Path $script:DMarkHome "marks.json"
@@ -622,6 +622,54 @@ function Show-DMarkDoctor {
             -Value "Unable to read"
     }
 
+    # --------------------------------------------------------
+    # Backups
+    # --------------------------------------------------------
+
+    $BackupDirectory = Join-Path `
+        $script:DMarkHome `
+        "backups"
+
+    if (Test-Path $BackupDirectory -PathType Container) {
+
+        Write-DoctorResult `
+            -Status "OK" `
+            -Name "Backup directory" `
+            -Value "Available"
+
+
+        try {
+
+            $BackupFiles = @(
+                Get-ChildItem `
+                    -Path $BackupDirectory `
+                    -Filter "*.json" `
+                    -File `
+                    -ErrorAction Stop
+            )
+
+            Write-DoctorResult `
+                -Status "OK" `
+                -Name "Backups" `
+                -Value $BackupFiles.Count
+
+        }
+        catch {
+
+            Write-DoctorResult `
+                -Status "WARN" `
+                -Name "Backups" `
+                -Value "Unable to read"
+        }
+
+    }
+    else {
+
+        Write-DoctorResult `
+            -Status "WARN" `
+            -Name "Backup directory" `
+            -Value "Not created yet"
+    }
 
     # --------------------------------------------------------
     # Profiles
@@ -728,6 +776,296 @@ function Show-DMarkDoctor {
     Write-Host ""
 }
 
+function Export-DMark {
+
+    param(
+        [string]$Path
+    )
+
+    Initialize-DMark
+
+    try {
+
+        $Marks = Get-DMarkData
+
+        if ([string]::IsNullOrWhiteSpace($Path)) {
+
+            $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+
+            $Path = Join-Path `
+                (Get-Location) `
+                "dmark-export-$Timestamp.json"
+        }
+
+        $FullPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+            $Path
+        )
+
+        $Directory = Split-Path $FullPath -Parent
+
+        if (
+            -not [string]::IsNullOrWhiteSpace($Directory) -and
+            -not (Test-Path $Directory)
+        ) {
+            New-Item `
+                -ItemType Directory `
+                -Path $Directory `
+                -Force | Out-Null
+        }
+
+        $Marks |
+            ConvertTo-Json -Depth 10 |
+            Set-Content `
+                -Path $FullPath `
+                -Encoding UTF8
+
+        Write-Host ""
+        Write-Host "dmark export"
+        Write-Host "------------"
+        Write-Host ""
+
+        Write-Host "Marks exported: $($Marks.Count)" `
+            -ForegroundColor Green
+
+        Write-Host ""
+        Write-Host $FullPath
+        Write-Host ""
+
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "Unable to export dmark marks." `
+            -ForegroundColor Red
+
+        Write-Host $_.Exception.Message
+        Write-Host ""
+    }
+}
+
+function Backup-DMark {
+
+    Initialize-DMark
+
+    try {
+
+        $BackupDirectory = Join-Path $script:DMarkHome "backups"
+
+        if (-not (Test-Path $BackupDirectory)) {
+            New-Item `
+                -ItemType Directory `
+                -Path $BackupDirectory `
+                -Force | Out-Null
+        }
+
+        $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+
+        $BackupFile = Join-Path `
+            $BackupDirectory `
+            "marks-$Timestamp.json"
+
+        $Marks = Get-DMarkData
+
+        $Marks |
+            ConvertTo-Json -Depth 10 |
+            Set-Content `
+                -Path $BackupFile `
+                -Encoding UTF8
+
+        Write-Host ""
+        Write-Host "dmark backup"
+        Write-Host "------------"
+        Write-Host ""
+
+        Write-Host "Backup created." -ForegroundColor Green
+
+        Write-Host ""
+        Write-Host "Marks : $($Marks.Count)"
+        Write-Host "File  : $BackupFile"
+        Write-Host ""
+    }
+    catch {
+
+        Write-Host ""
+        Write-Host "Unable to create backup." -ForegroundColor Red
+        Write-Host $_.Exception.Message
+        Write-Host ""
+    }
+}
+
+function Import-DMark {
+
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    Initialize-DMark
+
+    Write-Host ""
+    Write-Host "dmark import"
+    Write-Host "------------"
+    Write-Host ""
+
+    try {
+
+        $FullPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+            $Path
+        )
+
+        if (-not (Test-Path $FullPath)) {
+
+            Write-Host "File not found:" `
+                -ForegroundColor Red
+
+            Write-Host $FullPath
+            Write-Host ""
+
+            return
+        }
+
+        $RawImport = Get-Content `
+            -Path $FullPath `
+            -Raw `
+            -ErrorAction Stop
+
+        if ([string]::IsNullOrWhiteSpace($RawImport)) {
+            throw "The import file is empty."
+        }
+
+        try {
+            $ImportedObject = $RawImport | ConvertFrom-Json
+        }
+        catch {
+            throw "The import file does not contain valid JSON."
+        }
+
+
+        # ----------------------------------------------------
+        # Convertir a Hashtable
+        # ----------------------------------------------------
+
+        $ImportedMarks = @{}
+
+        if ($null -ne $ImportedObject) {
+
+            $ImportedObject.PSObject.Properties |
+                ForEach-Object {
+
+                    $Name = $_.Name
+                    $Value = [string]$_.Value
+
+                    if (
+                        -not [string]::IsNullOrWhiteSpace($Name) -and
+                        -not [string]::IsNullOrWhiteSpace($Value)
+                    ) {
+
+                        $ImportedMarks[$Name] = $Value
+                    }
+                }
+        }
+
+
+        if ($ImportedMarks.Count -eq 0) {
+
+            Write-Host "No marks found in the import file." `
+                -ForegroundColor Yellow
+
+            Write-Host ""
+
+            return
+        }
+
+
+        # ----------------------------------------------------
+        # Crear backup ANTES de modificar
+        # ----------------------------------------------------
+
+        $CurrentMarks = Get-DMarkData
+
+        $BackupDirectory = Join-Path `
+            $script:DMarkHome `
+            "backups"
+
+        if (-not (Test-Path $BackupDirectory)) {
+
+            New-Item `
+                -ItemType Directory `
+                -Path $BackupDirectory `
+                -Force | Out-Null
+        }
+
+        $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+
+        $PreImportBackup = Join-Path `
+            $BackupDirectory `
+            "pre-import-$Timestamp.json"
+
+        $CurrentMarks |
+            ConvertTo-Json -Depth 10 |
+            Set-Content `
+                -Path $PreImportBackup `
+                -Encoding UTF8
+
+
+        # ----------------------------------------------------
+        # Merge
+        # ----------------------------------------------------
+
+        $Added = 0
+        $Updated = 0
+
+        foreach ($Name in $ImportedMarks.Keys) {
+
+            if ($CurrentMarks.ContainsKey($Name)) {
+
+                if ($CurrentMarks[$Name] -ne $ImportedMarks[$Name]) {
+                    $CurrentMarks[$Name] = $ImportedMarks[$Name]
+                    $Updated++
+                }
+
+            }
+            else {
+
+                $CurrentMarks[$Name] = $ImportedMarks[$Name]
+                $Added++
+            }
+        }
+
+
+        Save-DMarkData $CurrentMarks
+
+
+        # ----------------------------------------------------
+        # Resultado
+        # ----------------------------------------------------
+
+        Write-Host "Import completed." `
+            -ForegroundColor Green
+
+        Write-Host ""
+        Write-Host "Imported : $($ImportedMarks.Count)"
+        Write-Host "Added    : $Added"
+        Write-Host "Updated  : $Updated"
+        Write-Host "Total    : $($CurrentMarks.Count)"
+
+        Write-Host ""
+        Write-Host "Automatic backup:"
+        Write-Host $PreImportBackup
+        Write-Host ""
+
+    }
+    catch {
+
+        Write-Host "Import failed." `
+            -ForegroundColor Red
+
+        Write-Host ""
+        Write-Host $_.Exception.Message
+        Write-Host ""
+    }
+}
+
 function dmark {
 
     param(
@@ -762,6 +1100,31 @@ function dmark {
 
         "update" {
             Update-DMark
+            return
+        }
+
+        "export" {
+            Export-DMark -Path $Argument1
+            return
+        }
+
+        "import" {
+
+            if ([string]::IsNullOrWhiteSpace($Argument1)) {
+                Write-Host ""
+                Write-Host "Uso:" -ForegroundColor Yellow
+                Write-Host "  dm import <archivo>"
+                Write-Host ""
+                return
+            }
+
+            Import-DMark -Path $Argument1
+            return
+        }
+
+        "backup" {
+            Backup-DMark
+            return
         }
 
         "rm" {
@@ -861,6 +1224,9 @@ $script:DMarkCommands = @(
     "open",
     "update",
     "doctor",
+    "export",
+    "import",
+    "backup",
     "--help",
     "--version"
 )
@@ -931,12 +1297,115 @@ function Get-DMarkCompletion {
 
         # ----------------------------------------------------
         # Segundo argumento
-        #
-        # Los siguientes comandos trabajan con
-        # marcadores existentes.
         # ----------------------------------------------------
 
         $SubCommand = $Arguments[0].ToLower()
+
+
+        # ----------------------------------------------------
+        # IMPORT
+        #
+        # dm import <TAB>
+        # dm import .\dmark<TAB>
+        #
+        # Autocompleta archivos JSON y directorios.
+        # ----------------------------------------------------
+
+        if ($SubCommand -eq "import") {
+
+            $CurrentWord = $WordToComplete
+
+            if ([string]::IsNullOrWhiteSpace($CurrentWord)) {
+                $CurrentWord = ".\"
+            }
+
+            # Separar directorio y nombre parcial
+            $DirectoryPart = Split-Path `
+                -Path $CurrentWord `
+                -Parent
+
+            $FilePart = Split-Path `
+                -Path $CurrentWord `
+                -Leaf
+
+            if ([string]::IsNullOrWhiteSpace($DirectoryPart)) {
+                $DirectoryPart = "."
+            }
+
+            if (-not (Test-Path $DirectoryPart -PathType Container)) {
+                return
+            }
+
+            Get-ChildItem `
+                -Path $DirectoryPart `
+                -ErrorAction SilentlyContinue |
+                Where-Object {
+
+                    # Mostrar directorios para poder seguir navegando
+                    # y archivos .json para importar.
+                    $_.PSIsContainer -or
+                    $_.Extension -eq ".json"
+
+                } |
+                Where-Object {
+
+                    $_.Name -like "$FilePart*"
+
+                } |
+                Sort-Object `
+                    @{ Expression = { -not $_.PSIsContainer } },
+                    Name |
+                ForEach-Object {
+
+                    if ($DirectoryPart -eq ".") {
+                        $CompletionPath = ".\$($_.Name)"
+                    }
+                    else {
+                        $CompletionPath = Join-Path `
+                            $DirectoryPart `
+                            $_.Name
+                    }
+
+
+                    # Agregar separador si es directorio
+                    if ($_.PSIsContainer) {
+                        $CompletionPath += "\"
+                    }
+
+
+                    # Si la ruta contiene espacios,
+                    # PowerShell necesita comillas.
+                    if ($CompletionPath -match '\s') {
+                        $CompletionText = "'$CompletionPath'"
+                    }
+                    else {
+                        $CompletionText = $CompletionPath
+                    }
+
+
+                    $ToolTip = if ($_.PSIsContainer) {
+                        "Directory: $($_.FullName)"
+                    }
+                    else {
+                        $_.FullName
+                    }
+
+
+                    [System.Management.Automation.CompletionResult]::new(
+                        $CompletionText,
+                        $_.Name,
+                        "ParameterValue",
+                        $ToolTip
+                    )
+                }
+
+            return
+        }
+
+
+        # ----------------------------------------------------
+        # Comandos que trabajan con marcadores existentes
+        # ----------------------------------------------------
 
         if ($SubCommand -in @(
             "rm",
@@ -968,12 +1437,12 @@ function Get-DMarkCompletion {
 
     }
     catch {
+
         # El autocompletado nunca debe impedir
         # el funcionamiento normal de PowerShell.
         return
     }
 }
-
 
 function Register-DMarkCompletion {
 
