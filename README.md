@@ -30,10 +30,16 @@ dm proyecto
 - Navegación con comandos cortos.
 - Alias `dm`.
 - Autocompletado con `TAB`.
+- Autocompletado de archivos JSON durante la importación.
 - Apertura de directorios en el Explorador de Windows.
 - Consulta de rutas sin cambiar de directorio.
 - Renombrado y eliminación de marcadores.
 - Actualización mediante `dm update`.
+- Diagnóstico de instalación mediante `dm doctor`.
+- Creación de respaldos mediante `dm backup`.
+- Exportación de marcadores a JSON.
+- Importación segura de marcadores mediante merge.
+- Backup automático antes de cada importación.
 - Instalación remota desde GitHub.
 - Compatible con Windows PowerShell 5.1.
 - Compatible con PowerShell 7+.
@@ -128,6 +134,11 @@ desde cualquier ubicación.
 | `dm path <nombre>` | Muestra la ruta del marcador |
 | `dm open <nombre>` | Abre el directorio en el Explorador |
 | `dm update` | Busca e instala una nueva versión |
+| `dm doctor` | Diagnostica la instalación y configuración |
+| `dm backup` | Crea un respaldo de los marcadores |
+| `dm export` | Exporta los marcadores a un archivo JSON |
+| `dm export <archivo>` | Exporta los marcadores al archivo indicado |
+| `dm import <archivo>` | Importa y combina marcadores desde un archivo JSON |
 | `dm --version` | Muestra la versión instalada |
 | `dm --help` | Muestra la ayuda |
 
@@ -264,13 +275,13 @@ También funciona con subcomandos:
 dm op<TAB>
 ```
 
-resultado:
+Resultado:
 
 ```text
 dm open
 ```
 
-y con marcadores utilizados por un subcomando:
+Y con marcadores utilizados por un subcomando:
 
 ```text
 dm open pro<TAB>
@@ -289,6 +300,24 @@ como con:
 ```text
 dmark
 ```
+
+## Autocompletado durante importación
+
+También se pueden autocompletar archivos JSON durante una importación:
+
+```text
+dm import <TAB>
+```
+
+o escribiendo parte del nombre:
+
+```text
+dm import .\dmark<TAB>
+```
+
+dmark muestra archivos `.json` y directorios disponibles, permitiendo navegar entre carpetas mediante `TAB`.
+
+Las rutas que contienen espacios también son compatibles.
 
 ---
 
@@ -322,6 +351,128 @@ dm --version
 
 ---
 
+# Diagnóstico
+
+Para revisar el estado de la instalación:
+
+```powershell
+dm doctor
+```
+
+El diagnóstico comprueba:
+
+- versión instalada de dmark;
+- versión de PowerShell;
+- archivo de instalación;
+- validez de `marks.json`;
+- cantidad de marcadores;
+- disponibilidad del directorio de backups;
+- cantidad de backups disponibles;
+- configuración del perfil de Windows PowerShell 5.1;
+- configuración del perfil de PowerShell 7+.
+
+Ejemplo:
+
+```text
+dmark doctor
+------------
+
+[OK]   Version  0.6.0
+[OK]   PowerShell  7.6.6
+[OK]   Installation  C:\Users\usuario\.dmark\bin\dmark.ps1
+[OK]   marks.json  Valid
+[OK]   Marks  5
+[OK]   Backup directory  Available
+[OK]   Backups  3
+[OK]   PS 5.1 profile  Configured
+[OK]   PS 7+ profile  Configured
+
+Summary
+-------
+OK      : 9
+Warnings: 0
+Errors  : 0
+
+No problems found.
+```
+
+`dm doctor` únicamente realiza comprobaciones de diagnóstico y no modifica la configuración.
+
+---
+
+# Backup, exportación e importación
+
+## Crear un backup
+
+Para crear un respaldo de los marcadores actuales:
+
+```powershell
+dm backup
+```
+
+Los backups se almacenan automáticamente en:
+
+```text
+~\.dmark\backups\
+```
+
+Los archivos utilizan fecha y hora para evitar sobrescribir respaldos anteriores:
+
+```text
+marks-20260927-195500.json
+```
+
+---
+
+## Exportar marcadores
+
+Para exportar los marcadores a un archivo JSON en el directorio actual:
+
+```powershell
+dm export
+```
+
+dmark generará automáticamente un archivo con fecha y hora:
+
+```text
+dmark-export-20260927-195500.json
+```
+
+También puedes especificar el archivo de destino:
+
+```powershell
+dm export C:\Backups\dmark.json
+```
+
+El archivo exportado puede utilizarse posteriormente para trasladar los marcadores a otra instalación.
+
+---
+
+## Importar marcadores
+
+Para importar marcadores desde un archivo JSON:
+
+```powershell
+dm import C:\Backups\dmark.json
+```
+
+La importación realiza un **merge** con los marcadores existentes.
+
+- Los marcadores nuevos se agregan.
+- Si un marcador ya existe con una ruta diferente, se actualiza.
+- Los marcadores que no aparecen en el archivo importado se conservan.
+- Antes de modificar los marcadores se crea automáticamente un backup.
+
+El respaldo previo a la importación se almacena en:
+
+```text
+~\.dmark\backups\pre-import-YYYYMMDD-HHMMSS.json
+```
+
+Esto permite conservar el estado anterior de los marcadores antes de cada importación.
+
+---
+
 # Almacenamiento
 
 dmark utiliza:
@@ -330,6 +481,9 @@ dmark utiliza:
 ~\.dmark\
 ├── bin\
 │   └── dmark.ps1
+├── backups\
+│   ├── marks-YYYYMMDD-HHMMSS.json
+│   └── pre-import-YYYYMMDD-HHMMSS.json
 └── marks.json
 ```
 
@@ -344,6 +498,14 @@ Los marcadores se almacenan por separado en:
 ```text
 ~\.dmark\marks.json
 ```
+
+Los respaldos se almacenan en:
+
+```text
+~\.dmark\backups\
+```
+
+El directorio contiene tanto los backups creados mediante `dm backup` como los respaldos automáticos generados antes de una importación.
 
 Esta separación permite actualizar o reinstalar dmark sin perder los directorios guardados.
 
@@ -380,6 +542,12 @@ y utilizarlo posteriormente desde Windows PowerShell 5.1:
 
 ```powershell
 dm proyectos
+```
+
+Los backups también son compartidos, ya que ambas versiones utilizan:
+
+```text
+~\.dmark\backups\
 ```
 
 ---
@@ -451,7 +619,7 @@ dmark no intenta reemplazar un explorador de archivos ni un gestor de proyectos.
 
 # Roadmap
 
-Implementado:
+## Implementado
 
 - [x] Marcadores persistentes
 - [x] Navegación mediante `dm`
@@ -462,17 +630,23 @@ Implementado:
 - [x] Instalador
 - [x] Desinstalador
 - [x] `dm update`
+- [x] `dm doctor`
 - [x] Windows PowerShell 5.1
 - [x] PowerShell 7+
 - [x] Autocompletado con `TAB`
+- [x] Autocompletado de archivos JSON para importación
 - [x] Instalación remota
+- [x] Exportación de marcadores
+- [x] Importación de marcadores mediante merge
+- [x] Backup manual de marcadores
+- [x] Backup automático antes de una importación
+- [x] Diagnóstico de backups
 
-Planeado:
+## Planeado
 
-- [ ] `dm doctor`
-- [ ] Exportación e importación de marcadores
-- [ ] Backup de marcadores
-- [ ] Mejoras en diagnóstico de instalación
+- [ ] Restauración directa desde backups
+- [ ] Diagnóstico avanzado
+- [ ] Importación con diferentes estrategias de conflicto
 - [ ] Evaluar soporte para otros shells y plataformas
 
 ---
